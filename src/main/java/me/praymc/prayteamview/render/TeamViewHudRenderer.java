@@ -27,7 +27,6 @@ import net.minecraft.client.DeltaTracker;
 
 //? if <1.21.9 {
 /*import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 *///?}
 
@@ -46,6 +45,7 @@ public final class TeamViewHudRenderer {
 
     // 1.21.9 이전에는 projectPointToScreen 이 없고 getFov 가 private 이라 투영 행렬을 렌더 단계에서 받아둔다.
     // 뷰 회전에 camera.rotation() 을 쓰면 안 된다 — 1.20.1 은 180도 요가 빠져 있고 1.21.1 은 들어 있다.
+    // 대신 yaw/pitch 로 뷰 행렬을 직접 만든다. 투영 행렬에는 뷰 보빙까지 들어 있어 그대로 곱하면 된다.
     //? if <1.21.9 {
     /*private static final float DEG_TO_RAD = (float) (Math.PI / 180.0);
 
@@ -198,13 +198,10 @@ public final class TeamViewHudRenderer {
         Vec3 projected = client.gameRenderer.projectPointToScreen(target);
         //?} else {
         /*if (projectionMatrix == null) return null;
-        Quaternionf viewRotation = new Quaternionf().rotationYXZ(
-                (float) Math.PI + camera.getYRot() * DEG_TO_RAD,
-                camera.getXRot() * DEG_TO_RAD,
-                0.0F
-        );
+        // 바닐라 renderLevel 과 같은 순서(Rx(pitch) 다음 Ry(yaw+180))로 뷰 회전을 직접 쌓는다.
         Matrix4f viewProjection = new Matrix4f(projectionMatrix)
-                .mul(new Matrix4f().rotation(viewRotation.conjugate()));
+                .rotateX(camera.getXRot() * DEG_TO_RAD)
+                .rotateY((camera.getYRot() + 180.0F) * DEG_TO_RAD);
         Vector3f ndc = viewProjection.transformProject(relative.toVector3f());
         Vec3 projected = new Vec3(ndc);
         *///?}
