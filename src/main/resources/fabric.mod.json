@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "prayteamview",
+  "version": "${version}",
+  "name": "PrayTeamView",
+  "description": "Pray TeamView 시스템과 연동해 화면에 팀원의 위치를 표시합니다.",
+  "authors": ["Yellim", "Irochi"],
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "me.praymc.prayteamview.PrayTeamViewClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${fabricloader}",
+    "minecraft": "${minecraft}",
+    "java": ">=${java}",
+    "fabric-api": "*"
+  }
+}
