@@ -40,7 +40,7 @@ tasks.withType<JavaCompile>().configureEach {
 val templateProperties = mapOf(
     "version" to version.toString(),
     "minecraft" to property("deps.minecraft_range").toString(),
-    "fabricloader" to property("deps.fabric_loader").toString(),
+    "fabricloader" to property("deps.fabric_loader_min").toString(),
     "java" to javaVersion.toString()
 )
 
