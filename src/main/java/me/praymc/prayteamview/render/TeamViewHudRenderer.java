@@ -36,9 +36,9 @@ public final class TeamViewHudRenderer {
     private static final double MARKER_HEIGHT_OFFSET = 0.85;
 
     private final TeamViewState state;
-    private final TeamViewConfig config;
+    private final TeamViewConfig.TeamViewSettings config;
 
-    public TeamViewHudRenderer(TeamViewState state, TeamViewConfig config) {
+    public TeamViewHudRenderer(TeamViewState state, TeamViewConfig.TeamViewSettings config) {
         this.state = state;
         this.config = config;
     }

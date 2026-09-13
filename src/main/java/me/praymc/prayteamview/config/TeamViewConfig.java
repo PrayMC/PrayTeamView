@@ -16,34 +16,53 @@ public final class TeamViewConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH = FabricLoader.getInstance().getConfigDir()
             .resolve("prayteamview.json");
+    private static TeamViewConfig instance;
 
-    public boolean enabled = true;
-    public boolean screenMarkers = true;
-    public boolean directionHud = true;
-    // 바닐라 네임태그가 사라지는 64블록부터 이어받는다 — 라벨이 끊기는 구간이 없도록
-    public double distantDetailsDistance = 64.0;
-    public long remoteInterpolationMillis = 1000L;
-    public double teleportSnapDistance = 32.0;
-    public long snapshotTtlMillis = 3000L;
-    public double maxRenderDistance = 4096.0;
+    public TeamViewSettings teamView = new TeamViewSettings();
+    public RallyPointSettings rallyPoint = new RallyPointSettings();
+
+    public static final class TeamViewSettings {
+        public boolean enabled = true;
+        public boolean screenMarkers = true;
+        public boolean directionHud = true;
+        // 바닐라 네임태그가 사라지는 64블록부터 이어받는다.
+        public double distantDetailsDistance = 64.0;
+        public long remoteInterpolationMillis = 1000L;
+        public double teleportSnapDistance = 32.0;
+        public long snapshotTtlMillis = 3000L;
+        public double maxRenderDistance = 4096.0;
+    }
+
+    public static final class RallyPointSettings {
+        public boolean enabled = true;
+        public double maxRenderDistance = 4096.0;
+    }
 
     public static TeamViewConfig load() {
-        if (Files.exists(PATH)) {
+        if (instance != null) return instance;
+        TeamViewConfig loaded = null;
+        boolean save = !Files.exists(PATH);
+        if (!save) {
             try (Reader reader = Files.newBufferedReader(PATH)) {
-                TeamViewConfig loaded = GSON.fromJson(reader, TeamViewConfig.class);
-                if (loaded != null) return loaded;
+                loaded = GSON.fromJson(reader, TeamViewConfig.class);
             } catch (IOException | JsonParseException ignored) {
             }
         }
+        if (loaded == null) loaded = new TeamViewConfig();
+        if (loaded.teamView == null) loaded.teamView = new TeamViewSettings();
+        if (loaded.rallyPoint == null) loaded.rallyPoint = new RallyPointSettings();
+        instance = loaded;
+        if (save) save(loaded);
+        return instance;
+    }
 
-        TeamViewConfig defaults = new TeamViewConfig();
+    private static void save(TeamViewConfig config) {
         try {
             Files.createDirectories(PATH.getParent());
             try (Writer writer = Files.newBufferedWriter(PATH)) {
-                GSON.toJson(defaults, writer);
+                GSON.toJson(config, writer);
             }
         } catch (IOException ignored) {
         }
-        return defaults;
     }
 }
