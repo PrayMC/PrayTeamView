@@ -4,13 +4,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import org.joml.Vector3fc;
-
 import me.praymc.prayteamview.config.TeamViewConfig;
 import me.praymc.prayteamview.state.TeamViewMarker;
 import me.praymc.prayteamview.state.TeamViewPosition;
 import me.praymc.prayteamview.state.TeamViewState;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
@@ -25,11 +22,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.DeltaTracker;
 //?}
 
-//? if <1.21.9 {
-/*import org.joml.Matrix4f;
-import org.joml.Vector3f;
-*///?}
-
 public final class TeamViewHudRenderer {
 
     private static final Component MARKER_ICON = Component.literal("▼");
@@ -37,24 +29,14 @@ public final class TeamViewHudRenderer {
 
     private final TeamViewState state;
     private final TeamViewConfig.TeamViewSettings config;
+    private final ScreenProjector projector;
 
-    public TeamViewHudRenderer(TeamViewState state, TeamViewConfig.TeamViewSettings config) {
+    public TeamViewHudRenderer(TeamViewState state, TeamViewConfig.TeamViewSettings config,
+                               ScreenProjector projector) {
         this.state = state;
         this.config = config;
+        this.projector = projector;
     }
-
-    // 1.21.9 이전에는 projectPointToScreen 이 없고 getFov 가 private 이라 투영 행렬을 렌더 단계에서 받아둔다.
-    // 뷰 회전에 camera.rotation() 을 쓰면 안 된다 — 1.20.1 은 180도 요가 빠져 있고 1.21.1 은 들어 있다.
-    // 대신 yaw/pitch 로 뷰 행렬을 직접 만든다. 투영 행렬에는 뷰 보빙까지 들어 있어 그대로 곱하면 된다.
-    //? if <1.21.9 {
-    /*private static final float DEG_TO_RAD = (float) (Math.PI / 180.0);
-
-    private Matrix4f projectionMatrix;
-
-    public void captureProjectionMatrix(Matrix4f matrix) {
-        this.projectionMatrix = new Matrix4f(matrix);
-    }
-    *///?}
 
     //? if >=1.21 {
     public void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
@@ -114,8 +96,9 @@ public final class TeamViewHudRenderer {
 
     private void renderScreenMarkers(GuiGraphics graphics, Minecraft client, List<ResolvedMarker> markers) {
         for (ResolvedMarker resolved : markers) {
-            ScreenPoint point = project(client, graphics, resolved.x(), resolved.y(), resolved.z());
-            if (point == null) continue;
+            ScreenPoint point = projector.project(client, graphics, resolved.x(), resolved.y(), resolved.z());
+            if (point == null || point.x() < -80 || point.x() > graphics.guiWidth() + 80
+                    || point.y() < -40 || point.y() > graphics.guiHeight() + 40) continue;
 
             int color = forceOpaque(resolved.marker().markerArgb());
             drawCenteredString(graphics, client, MARKER_ICON, point.x(), point.y() - 8.0, color);
@@ -177,42 +160,6 @@ public final class TeamViewHudRenderer {
         /*PlayerFaceRenderer.draw(graphics, info.getSkinLocation(), 0, 0, 10);
         *///?}
         popPose(graphics);
-    }
-
-    private ScreenPoint project(Minecraft client, GuiGraphics graphics, double x, double y, double z) {
-        Camera camera = client.gameRenderer.getMainCamera();
-        Vec3 target = new Vec3(x, y, z);
-
-        //? if >=1.21.9 {
-        Vec3 relative = target.subtract(camera.position());
-        Vector3fc forward = camera.forwardVector();
-        //?} else {
-        /*Vec3 relative = target.subtract(camera.getPosition());
-        Vector3fc forward = camera.getLookVector();
-        *///?}
-
-        double depth = relative.x * forward.x() + relative.y * forward.y() + relative.z * forward.z();
-        if (depth <= 0.05) return null;
-
-        //? if >=1.21.9 {
-        Vec3 projected = client.gameRenderer.projectPointToScreen(target);
-        //?} else {
-        /*if (projectionMatrix == null) return null;
-        // 바닐라 renderLevel 과 같은 순서(Rx(pitch) 다음 Ry(yaw+180))로 뷰 회전을 직접 쌓는다.
-        Matrix4f viewProjection = new Matrix4f(projectionMatrix)
-                .rotateX(camera.getXRot() * DEG_TO_RAD)
-                .rotateY((camera.getYRot() + 180.0F) * DEG_TO_RAD);
-        Vector3f ndc = viewProjection.transformProject(relative.toVector3f());
-        Vec3 projected = new Vec3(ndc);
-        *///?}
-
-        double screenX = (projected.x + 1.0) * graphics.guiWidth() / 2.0;
-        double screenY = (1.0 - projected.y) * graphics.guiHeight() / 2.0;
-        if (!Double.isFinite(screenX) || !Double.isFinite(screenY)) return null;
-
-        if (screenX < -80 || screenX > graphics.guiWidth() + 80
-                || screenY < -40 || screenY > graphics.guiHeight() + 40) return null;
-        return new ScreenPoint(screenX, screenY);
     }
 
     private void drawCenteredString(GuiGraphics graphics, Minecraft client, Component text,

@@ -1,5 +1,6 @@
 package me.praymc.prayteamview.network;
 
+import me.praymc.prayteamview.PrayTeamViewClient;
 import me.praymc.prayteamview.compat.Ids;
 import net.minecraft.network.FriendlyByteBuf;
 
@@ -14,12 +15,14 @@ public record RallyHelloPayload(long epoch)
         implements CustomPacketPayload
 {
     public static RallyHelloPayload read(FriendlyByteBuf buffer) {
-        if (buffer.readUnsignedShort() != 2) throw new IllegalArgumentException("Unsupported Rally protocol");
+        if (buffer.readUnsignedShort() != PrayTeamViewClient.RALLY_PROTOCOL_VERSION) {
+            throw new IllegalArgumentException("Unsupported Rally protocol");
+        }
         return new RallyHelloPayload(buffer.readLong());
     }
 
     public static void write(FriendlyByteBuf buffer, RallyHelloPayload payload) {
-        buffer.writeShort(2);
+        buffer.writeShort(PrayTeamViewClient.RALLY_PROTOCOL_VERSION);
         buffer.writeLong(payload.epoch());
     }
 

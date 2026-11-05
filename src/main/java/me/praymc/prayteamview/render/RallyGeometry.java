@@ -6,25 +6,41 @@ public final class RallyGeometry {
     public static final float RING_WIDTH = 0.1F;
     public static final float BEAM_WIDTH = 0.12F;
     public static final float BEAM_HEIGHT = 64.0F;
+    private static final int SEGMENTS = 64;
+    // 정점은 고리 다음 빔 순서로 놓여 있어 두 부분을 따로 그릴 수 있다.
+    public static final int RING_VERTEX_COUNT = SEGMENTS * 6;
+    public static final int BEAM_VERTEX_COUNT = 36;
+    public static final int VERTEX_COUNT = RING_VERTEX_COUNT + BEAM_VERTEX_COUNT;
     private static final float[] VERTICES = build();
 
     private RallyGeometry() {
     }
 
     public static void emit(VertexSink sink) {
-        for (int i = 0; i < VERTICES.length; i += 3) {
+        emit(sink, 0, VERTEX_COUNT);
+    }
+
+    public static void emitRing(VertexSink sink) {
+        emit(sink, 0, RING_VERTEX_COUNT);
+    }
+
+    public static void emitBeam(VertexSink sink) {
+        emit(sink, RING_VERTEX_COUNT, VERTEX_COUNT);
+    }
+
+    private static void emit(VertexSink sink, int from, int to) {
+        for (int i = from * 3; i < to * 3; i += 3) {
             sink.vertex(VERTICES[i], VERTICES[i + 1], VERTICES[i + 2]);
         }
     }
 
     private static float[] build() {
-        int segments = 64;
-        float[] vertices = new float[(segments * 6 + 36) * 3];
+        float[] vertices = new float[VERTEX_COUNT * 3];
         int offset = 0;
         float inner = RING_RADIUS - RING_WIDTH;
-        for (int i = 0; i < segments; i++) {
-            double a = Math.PI * 2 * i / segments;
-            double b = Math.PI * 2 * (i + 1) / segments;
+        for (int i = 0; i < SEGMENTS; i++) {
+            double a = Math.PI * 2 * i / SEGMENTS;
+            double b = Math.PI * 2 * (i + 1) / SEGMENTS;
             float ax = (float) Math.cos(a), az = (float) Math.sin(a);
             float bx = (float) Math.cos(b), bz = (float) Math.sin(b);
             offset = quad(vertices, offset,

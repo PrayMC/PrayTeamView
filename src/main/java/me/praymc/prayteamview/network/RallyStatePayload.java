@@ -1,5 +1,6 @@
 package me.praymc.prayteamview.network;
 
+import me.praymc.prayteamview.PrayTeamViewClient;
 import me.praymc.prayteamview.state.RallyPoint;
 import me.praymc.prayteamview.compat.Ids;
 import net.minecraft.network.FriendlyByteBuf;
@@ -10,23 +11,34 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 //?}
 
-public record RallyStatePayload(long epoch, long sequence, RallyPoint point)
+// valid 가 false 면 받은 쪽에서 버린다.
+public record RallyStatePayload(long epoch, long sequence, RallyPoint point, boolean valid)
         //? if >=1.20.5
         implements CustomPacketPayload
 {
+    private static final RallyStatePayload INVALID = new RallyStatePayload(0L, 0L, null, false);
+
+    // 디코딩 중 예외가 나면 접속이 끊긴다. 모르는 버전이나 깨진 값은 예외 대신 무시할 패킷으로 돌려준다.
     public static RallyStatePayload read(FriendlyByteBuf buffer) {
-        if (buffer.readUnsignedShort() != 2) throw new IllegalArgumentException("Unsupported Rally protocol");
+        if (buffer.readUnsignedShort() != PrayTeamViewClient.RALLY_PROTOCOL_VERSION) {
+            // 남은 바이트가 있으면 패킷이 예상보다 크다는 오류가 나므로 끝까지 건너뛴다.
+            buffer.skipBytes(buffer.readableBytes());
+            return INVALID;
+        }
         long epoch = buffer.readLong();
         long sequence = buffer.readLong();
-        RallyPoint point = buffer.readBoolean()
-                ? new RallyPoint(buffer.readDouble(), buffer.readDouble(), buffer.readDouble(),
-                        buffer.readInt(), buffer.readUtf(512))
-                : null;
-        return new RallyStatePayload(epoch, sequence, point);
+        if (!buffer.readBoolean()) return new RallyStatePayload(epoch, sequence, null, true);
+        double x = buffer.readDouble();
+        double y = buffer.readDouble();
+        double z = buffer.readDouble();
+        int color = buffer.readInt();
+        String name = buffer.readUtf();
+        if (!RallyPoint.isValid(x, y, z, name)) return INVALID;
+        return new RallyStatePayload(epoch, sequence, new RallyPoint(x, y, z, color, name), true);
     }
 
     public static void write(FriendlyByteBuf buffer, RallyStatePayload payload) {
-        buffer.writeShort(2);
+        buffer.writeShort(PrayTeamViewClient.RALLY_PROTOCOL_VERSION);
         buffer.writeLong(payload.epoch());
         buffer.writeLong(payload.sequence());
         RallyPoint point = payload.point();
@@ -36,7 +48,7 @@ public record RallyStatePayload(long epoch, long sequence, RallyPoint point)
             buffer.writeDouble(point.y());
             buffer.writeDouble(point.z());
             buffer.writeInt(point.colorArgb());
-            buffer.writeUtf(point.name(), 512);
+            buffer.writeUtf(point.name(), RallyPoint.MAX_NAME_LENGTH);
         }
     }
 

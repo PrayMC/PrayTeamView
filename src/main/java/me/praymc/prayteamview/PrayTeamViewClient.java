@@ -9,6 +9,7 @@ import me.praymc.prayteamview.network.ResetPayload;
 import me.praymc.prayteamview.network.SnapshotPayload;
 import me.praymc.prayteamview.render.RallyHudRenderer;
 import me.praymc.prayteamview.render.RallyWorldRenderer;
+import me.praymc.prayteamview.render.ScreenProjector;
 import me.praymc.prayteamview.render.TeamViewHudRenderer;
 import me.praymc.prayteamview.state.RallyPoint;
 import me.praymc.prayteamview.state.RallyState;
@@ -33,13 +34,17 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 //?} else {
 /*import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+*///?}
+
+//? if <1.21.9 {
+/*import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 *///?}
 
 public final class PrayTeamViewClient implements ClientModInitializer {
 
     public static final String MOD_ID = Ids.MOD_ID;
     public static final int PROTOCOL_VERSION = 1;
+    public static final int RALLY_PROTOCOL_VERSION = 2;
 
     private final TeamViewState state = new TeamViewState();
     private final RallyState rallyState = new RallyState();
@@ -49,7 +54,8 @@ public final class PrayTeamViewClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        TeamViewConfig.TeamViewSettings config = TeamViewConfig.load().teamView;
+        TeamViewConfig loaded = TeamViewConfig.load();
+        TeamViewConfig.TeamViewSettings config = loaded.teamView;
 
         // 1.20.5 미만 경로의 핸들러는 넷티 스레드에서 불린다 — 버퍼를 즉시 읽고 상태 변경만 클라이언트 스레드로 넘긴다
         //? if >=1.20.5 {
@@ -99,18 +105,21 @@ public final class PrayTeamViewClient implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> state.disconnect());
 
-        TeamViewHudRenderer renderer = new TeamViewHudRenderer(state, config);
+        ScreenProjector projector = new ScreenProjector();
+        //? if <1.21.9 {
+        /*WorldRenderEvents.END.register(context -> projector.captureProjectionMatrix(context.projectionMatrix()));
+        *///?}
+        TeamViewHudRenderer renderer = new TeamViewHudRenderer(state, config, projector);
         //? if >=1.21.6 {
         HudElementRegistry.addLast(Ids.of("team_view"), renderer::render);
         //?} else {
         /*HudRenderCallback.EVENT.register(renderer::render);
-        WorldRenderEvents.END.register(context -> renderer.captureProjectionMatrix(context.projectionMatrix()));
         *///?}
-        initializeRally();
+        initializeRally(loaded.rallyPoint, projector);
     }
 
-    private void initializeRally() {
-        rallyConfig = TeamViewConfig.load().rallyPoint;
+    private void initializeRally(TeamViewConfig.RallyPointSettings config, ScreenProjector projector) {
+        rallyConfig = config;
         //? if >=1.20.5 {
         PayloadTypeRegistry.playC2S().register(RallyHelloPayload.TYPE, RallyHelloPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(RallyStatePayload.TYPE, RallyStatePayload.CODEC);
@@ -136,17 +145,16 @@ public final class PrayTeamViewClient implements ClientModInitializer {
         RallyWorldRenderer renderer = new RallyWorldRenderer(this::currentRally);
         renderer.register();
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> renderer.close());
-        RallyHudRenderer hud = new RallyHudRenderer(this::currentRally);
+        RallyHudRenderer hud = new RallyHudRenderer(this::currentRally, projector);
         //? if >=1.21.6 {
         HudElementRegistry.addLast(Ids.of("rally"), hud::render);
         //?} else {
         /*HudRenderCallback.EVENT.register(hud::render);
-        WorldRenderEvents.END.register(
-                context -> hud.captureProjectionMatrix(context.projectionMatrix()));
         *///?}
     }
 
     private void acceptRally(Minecraft client, RallyStatePayload payload) {
+        if (!payload.valid()) return;
         updateRallyWorld(client);
         rallyState.apply(payload.epoch(), payload.sequence(), payload.point());
     }

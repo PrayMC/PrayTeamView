@@ -16,7 +16,6 @@ public final class TeamViewConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH = FabricLoader.getInstance().getConfigDir()
             .resolve("prayteamview.json");
-    private static TeamViewConfig instance;
 
     public TeamViewSettings teamView = new TeamViewSettings();
     public RallyPointSettings rallyPoint = new RallyPointSettings();
@@ -39,7 +38,6 @@ public final class TeamViewConfig {
     }
 
     public static TeamViewConfig load() {
-        if (instance != null) return instance;
         TeamViewConfig loaded = null;
         boolean save = !Files.exists(PATH);
         if (!save) {
@@ -51,9 +49,8 @@ public final class TeamViewConfig {
         if (loaded == null) loaded = new TeamViewConfig();
         if (loaded.teamView == null) loaded.teamView = new TeamViewSettings();
         if (loaded.rallyPoint == null) loaded.rallyPoint = new RallyPointSettings();
-        instance = loaded;
         if (save) save(loaded);
-        return instance;
+        return loaded;
     }
 
     private static void save(TeamViewConfig config) {
